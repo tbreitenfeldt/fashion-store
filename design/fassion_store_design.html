@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Fashion Store design</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Fashion Store design</h1>
+</header>
+<h1 id="fashion-store-design">Fashion Store Design</h1>
+<p>note: deletes are soft deletes</p>
+<h2 id="user-types">user types</h2>
+<ul>
+<li>customer:<br />
+add/remove items from a shopping cart<br />
+post order</li>
+<li>sales_representative:<br />
+add/remove item from cart<br />
+post order for customer<br />
+cancel and refund order</li>
+<li>admin:<br />
+everything</li>
+</ul>
+<h2 id="microservice-architecture">microservice architecture</h2>
+<p>Secured using JWT authentication using AWS cognito</p>
+<h3 id="order-service">order service</h3>
+<p>technology: spring boot using spring data JPA/hibernate</p>
+<p>using strype for payments , the payment_id is related to strype extract user_id on requests through JWT<br />
+an order will not be written to the database until the payment is complete through strype<br />
+a customer ID is the same as a user ID a sailes rep ID is the same as a user ID</p>
+<h4 id="data">data</h4>
+<p>SQL database</p>
+<h5 id="relational-model">Relational Model</h5>
+<p>order:</p>
+<ul>
+<li>id, int</li>
+<li>price_paid, decimal</li>
+<li>payment_id, int</li>
+<li>tax_rate, decimal</li>
+<li>order_date, date</li>
+<li>customer_id, int</li>
+<li>shipping_street_address, string</li>
+<li>shipping_city, string</li>
+<li>shipping_state, string</li>
+<li>shipping_zip, string</li>
+<li><ul>
+<li>sales_representative_id, int</li>
+</ul></li>
+<li>status, enum(OPEN, PENDING, CLOSED)</li>
+<li>deleted, boolean</li>
+</ul>
+<p>order_products:</p>
+<ul>
+<li>order_id</li>
+<li>product_id</li>
+</ul>
+<p>order_discount:</p>
+<ul>
+<li>order_id</li>
+<li>discount_id</li>
+</ul>
+<p>####end points</p>
+<ul>
+<li>get: /orders | (ADMIN, SALES_REPRESENTATIVE)<br />
+response body: [{id: 0, products: [product_ids], discounts: [discount_ids], price_paid, decimal: 0.0, tax_rate: 0.0, order_date: yyyy-mm-dd, customer: {user_id: 0.0, email: "“, phone:”“, first_name:”“, last_name:”“}, shipping_address:”“, shipping_city:”“, shipping_state:”“, shipping_zip:”"}]<br />
+success status: 200<br />
+Gets all orders</li>
+<li>get: /orders/{id} | (ADMIN, SALES_REPRESENTATIVE)<br />
+response body: {id: 0, products: [product_ids], discounts: [discount_ids], price_paid, decimal: 0.0, tax_rate: 0.0, order_date: yyyy-mm-dd, customer: {user_id: 0.0, email: "“, phone:”“, first_name:”“, last_name:”“}, shipping_address:”“, shipping_city:”“, shipping_state:”“, shipping_zip:”"}<br />
+success status: 200 not found status: 404 Gets a specific order by order ID</li>
+<li>get: /orders/users/{id} | (ADMIN, SALES_REPRESENTATIVE, CUSTOMER)<br />
+response body: [{id: 0, products: [product_ids], discounts: [discount_ids], price_paid, decimal: 0.0, tax_rate: 0.0, order_date: yyyy-mm-dd, customer: {user_id: 0.0, email: "“, phone:”“, first_name:”“, last_name:”“}, shipping_address:”“, shipping_city:”“, shipping_state:”“, shipping_zip:”"}]<br />
+success status: 200 not found status: 404 Gets orders orders by user ID for the customer</li>
+<li>get: /taxrate?zip="" | (ADMIN, SALES_REPRESENTATIVE, CUSTOMER)<br />
+success status: 200 not found status: 404 response body: {tax_rate: 0.0} Get the tax rate for a specific zip code</li>
+<li>post: /orders/{id}/cancellation | (ADMIN, SALES_REPRESENTATIVE, CUSTOMER)<br />
+success status: 204 not found: 404 Cancels a specific order by changing the status field to CLOSED</li>
+<li>put: /orders/{id} | (ADMIN, SALES_REPRESENTATIVE)<br />
+request body: {id: 0, products: [product_ids], discounts: [discount_ids], shipping_address: "“, shipping_city:”“, shipping_state:”“, shipping_zip:”"}<br />
+success status: 204<br />
+not found status: 404 bad request status: 400<br />
+Updates an order based on a provided order ID</li>
+<li>post: /orders | (ADMIN, SALES_REPRESENTATIVE, CUSTOMER)<br />
+request body: {products: [product_ids], discounts: [discount_ids], shipping_address: "“, shipping_city:”“, shipping_state:”“, shipping_zip:”"}<br />
+response location header: http://url/orders/{id}<br />
+success status: 201<br />
+not found status: 404 bad request status: 400<br />
+Creates a new order</li>
+<li>delete: /orders/:id | (ADMIN)<br />
+success status: 204 not found status: 404 Soft deletes an order by flipping the deleted flag to True</li>
+</ul>
+<h3 id="product-service">product service</h3>
+<p>technology: Node.js using express</p>
+<p>product_image is just a path to a location of an image<br />
+Images are stored in Amazon Web Services S3 bucket</p>
+<h4 id="data-1">data</h4>
+<ul>
+<li>id, int</li>
+<li>name, string</li>
+<li>category, string</li>
+<li>description, string</li>
+<li>gender, enum(MALE, FEMALE, OTHER), nullable</li>
+<li>size, int, nullable</li>
+<li>product_image, string, nullable</li>
+<li>base_price, decimal</li>
+<li>final_price, decimal</li>
+<li>deleted, boolean</li>
+</ul>
+<h4 id="end-points">end points</h4>
+<ul>
+<li>get: /products | (ADMIN, SALES_REPRESENTATIVE, CUSTOMER)<br />
+response body: [{id: 0, name: "“, category:”“, description:”“, gender:”“, size:”“, product_image:”", base_price: 0.0, final_price: 0.0}]<br />
+success status: 200<br />
+Gets all products</li>
+<li>get: /products/prices?id=""… | (internal to be used by the order API)<br />
+response body: [{id: 0, final_price: 0.0}]<br />
+success status: 200<br />
+not found: 404<br />
+Gets the final prices for each product ID provided to be used by the order API on checkout, if any one of the IDs provided are invalid, a 404 status code is returned</li>
+<li>get: /products/{id} | (ADMIN, SALES_REPRESENTATIVE, CUSTOMER)<br />
+response body: {id: 0, final_price: 0.0}<br />
+success status: 200<br />
+not found: 404<br />
+Gets a specific product by product ID</li>
+<li>get: /products/search?name="“&amp;category=”“&amp;gender=”" | (ADMIN, SALES_REPRESENTATIVE, CUSTOMER)<br />
+response body: [{id: 0, name: "“, category:”“, description:”“, gender:”“, size:”“, product_image:”", base_price: 0.0, final_price: 0.0}]<br />
+success status: 200<br />
+bad request: 400<br />
+not found: 404<br />
+Searchs Products based on the query parameters: name, category, and gender</li>
+<li>put: /products/{id} | (ADMIN)<br />
+request body: {id: 0, name: "“, category:”“, description:”“, gender:”“, size:”“, product_image:”", base_price: 0.0, final_price: 0.0}<br />
+success status: 204<br />
+bad request: 400<br />
+not found: 404<br />
+updates a product based on a given product ID</li>
+<li>post: /products | (ADMIN)<br />
+request body: {name: "“, category:”“, description:”“, gender:”“, size:”“, product_image:”", base_price: 0.0, final_price: 0.0}<br />
+response location header: http://url/products/{id}<br />
+success status: 201<br />
+bad request: 400<br />
+Creates a new product</li>
+<li>delete: /products/:{id} | (ADMIN)<br />
+success status: 204<br />
+not found: 404<br />
+Soft deletes an product by flipping the deleted flag to True</li>
+</ul>
+<h3 id="discount-service">discount service</h3>
+<p>technology: python using flask</p>
+<p>Discounts are seen in two ways, either general discounts to the entire order, or category discounts<br />
+Only a percentage is used for discounts to simplify more complex discount models</p>
+<h4 id="data-2">data</h4>
+<ul>
+<li>promo_code, string</li>
+<li>experation_date, date, nullable</li>
+<li>category, string, nullable</li>
+<li>percentage_off, decimal</li>
+<li>times_used, int, nullable</li>
+<li>max_usage, int, nullable</li>
+<li>deleted, boolean</li>
+</ul>
+<h4 id="end-points-1">end points</h4>
+<ul>
+<li>get: /discounts | (ADMIN)<br />
+response body: [{promo_code: "“, experation_date:”“, category:”", percentage_off: 0.0, times_used: 0, max_usage}]<br />
+success status: 200<br />
+Returns all discounts</li>
+<li>get: /discounts/{id} | (ADMIN, SALES_REPRESENTATIVE, CUSTOMER)<br />
+response body: {promo_code: "“, experation_date:”“, category:”", percentage_off: 0.0, times_used: 0, max_usage}<br />
+success status: 200<br />
+not found: 404<br />
+invalid promo code: 422<br />
+Returns a specific discount by discount ID, validating that the code is not past its experation date if applicable or exceeding the number of usages if applicable</li>
+<li>get: /discounts/percentages?id=0&amp;… | (internal to be used by the order API)<br />
+response body: [{promo_code: "“, category:”", percentage_off: 0.0}]<br />
+success status: 200<br />
+not found: 404<br />
+invalid code: 422<br />
+Returns discounts based on provided discount IDs, validating that each code is not past its experation date if applicable or exceeding the number of usages if applicable, if any discount IDs cannot be found a 404 error is thrown, and if any code is invalid a 422 error is thrown</li>
+<li>put: /discounts/{code} | (ADMIN)<br />
+request body: {promo_code: "“, experation_date:”“, category:”", percentage_off: 0.0, times_used: 0, max_usage}<br />
+success status: 204<br />
+not found: 404<br />
+bad request: 400<br />
+Updates a discount by promo code</li>
+<li>post: /discounts | (ADMIN)<br />
+request body: {experation_date: "“, category:”", percentage_off: 0.0, times_used: 0, max_usage}<br />
+response location header: http://url/discounts/{code}<br />
+success status: 201<br />
+not found: 404<br />
+bad request: 400<br />
+Creates a discount</li>
+<li>/delete: /delete | (ADMIN)<br />
+success status: 204<br />
+not found: 404<br />
+Deletes a discount</li>
+</ul>
+<h3 id="user-service-aws-cognito">user service (AWS Cognito)</h3>
+<h4 id="data-3">data</h4>
+<ul>
+<li>user_id, int</li>
+<li>password, string</li>
+<li>role, enum(CUSTOMER, SALES_REPRESENTATIVE, ADMIN)</li>
+<li>email, string</li>
+<li>first_name, string</li>
+<li>last_name, string</li>
+<li>phone, string</li>
+<li>street_address, string</li>
+<li>city, string</li>
+<li>state, string</li>
+<li>zip, string</li>
+</ul>
+<h4 id="endpoints">Endpoints</h4>
+<p>n/a</p>
+</body>
+</html>
