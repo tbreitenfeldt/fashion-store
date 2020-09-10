@@ -48,11 +48,11 @@ order:
 - shipping_city, string
 - shipping_state, string
 - shipping_zip, string
-- - sales_representative_id, int
+- sales_representative_id, int
 - status, enum(OPEN, PENDING, CLOSED)
 - deleted, boolean
 
-order_products:
+order_product:
 
 - order_id
 - product_id
