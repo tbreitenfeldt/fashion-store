@@ -119,7 +119,7 @@ Images are stored in Amazon Web Services S3 bucket
 - category, string
 - description, string
 - gender, enum(MALE, FEMALE, OTHER), nullable
-- size, int, nullable
+- size, string, nullable
 - product_image, string, nullable
 - base_price, decimal
 - final_price, decimal
