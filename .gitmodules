@@ -1,0 +1,4 @@
+[submodule "fs-products-microservice"]
+	path = fs-products-microservice
+	url = https://github.com/tbreitenfeldt/fs-products-microservice.git
+	branch = master

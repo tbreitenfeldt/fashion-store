@@ -20,6 +20,8 @@ everything
 
 Secured using JWT authentication using AWS cognito
 
+base URI: /api 
+
 ### order service
 
 technology: spring boot using spring data JPA/hibernate
